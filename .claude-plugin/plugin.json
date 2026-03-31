@@ -1,0 +1,11 @@
+{
+  "name": "simplero-skills",
+  "description": "AI coding agent skills for building on Simplero",
+  "author": {
+    "name": "Simplero"
+  },
+  "homepage": "https://github.com/simplero/skills",
+  "repository": "https://github.com/simplero/skills",
+  "license": "MIT",
+  "keywords": ["simplero", "landing-pages", "api", "skills"]
+}
