@@ -1,0 +1,17 @@
+{
+  "name": "simplero-skills",
+  "description": "AI coding agent skills for building on Simplero",
+  "owner": {
+    "name": "Simplero"
+  },
+  "plugins": [
+    {
+      "name": "simplero-skills",
+      "description": "AI coding agent skills for building on Simplero",
+      "source": "./",
+      "author": {
+        "name": "Simplero"
+      }
+    }
+  ]
+}
