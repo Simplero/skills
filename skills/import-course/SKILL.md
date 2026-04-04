@@ -1,6 +1,6 @@
 ---
 name: import-course
-version: 0.1.0
+version: 0.2.0
 description: Import an online course from any platform (Kajabi, Skool, Teachable, WordPress/LearnDash, etc.) into Simplero. Handles video, audio, text, attachments, and resources.
 user-invocable: true
 argument-hint: <source-url>
@@ -32,7 +32,10 @@ Site
             ├── body (HTML — the lesson's text/copy content)
             ├── asset_id (a single video or audio file)
             ├── attachments[] (PDFs, downloads, links)
-            └── publish_status ("published" or "draft")
+            ├── publish_status ("published" or "draft")
+            ├── default_playback_speed (float, e.g. 1.0 or 1.5)
+            ├── allow_multiple_completions (boolean)
+            └── remember_playback_position (boolean)
 ```
 
 **Mapping rules:**
@@ -66,11 +69,15 @@ Use Playwright (headless Chromium) to log in and scrape. Key patterns per platfo
 - Children with `unitType: "module"` are individual lessons
 
 **Kajabi:**
-- Login at `/login` — fields are `#member_email` and `#member_password`
+- Login at `/login` — fields are `#member_email` and `#member_password`. Submit button may be `input[type="submit"]` OR `button#form-button` — check the page.
 - Course page lists categories with links to `/categories/{id}`
 - Each category page has lesson links to `/posts/{id}`
 - Videos are typically Wistia embeds — look for `wistia_async_{ID}` in div classes
-- Body content is in `.post-body` or `.kjb-post__body`
+- Body content varies by theme:
+  - Try `.post-body`, `.kjb-post__body`, `.post__body` first
+  - If those are empty, check `.panel__block` inside `.section__body` — strip the `h1.panel__title` and `h5.panel__sub-title`, keep the remaining `h2`, `p`, and other content elements
+  - Also check the course listing page for `p.syllabus__text` descriptions (these may be truncated — always prefer the full content from the lesson page)
+  - **Do not skip body scraping** — always visit each individual lesson page and extract all text/HTML content. This is the lesson's copy and must be imported.
 
 **WordPress/LearnDash:**
 - Login at `/wp-login.php`
@@ -92,12 +99,15 @@ Look for these in order on each lesson page:
 6. `<iframe src="...soundcloud.com/...">` or `soundcloud.com` links → SoundCloud audio
 7. `<audio>` elements → direct audio files
 
-### Extracting Body Content
-- Get the lesson page's text/HTML content (below or beside the video)
-- Look for `.post-body`, `.entry-content`, `.lesson-content`, etc.
+### Extracting Body Content (CRITICAL — do not skip)
+Every lesson's text/copy content MUST be scraped and imported. This is the lesson description, instructions, or written content that accompanies the video/audio.
+
+- **Always visit each individual lesson page** and extract the body content. Do not rely solely on listing page excerpts (they are often truncated).
+- Look for content in these selectors (in order): `.post-body`, `.kjb-post__body`, `.entry-content`, `.lesson-content`, `.panel__block` (Kajabi — strip title elements)
 - Preserve meaningful HTML structure (headings, lists, links, bold/italic)
-- Strip navigation, player UI, platform chrome — only keep the actual lesson copy
-- If the body is just the video embed with no text, set body to empty string
+- Strip navigation, player UI, "Mark as Complete" buttons, "Next Lesson" links, platform chrome — only keep the actual lesson copy
+- Remove `data-*` attributes from extracted HTML for cleanliness
+- If the body is truly just the video embed with no text, set body to empty string — but verify by checking multiple selectors first
 
 ### Extracting Attachments/Resources
 - Download links (PDFs, docs, spreadsheets)
@@ -189,9 +199,13 @@ POST /course_modules/{module_id}/course_lessons.json
   "body": "<p>HTML content here</p>",
   "asset_id": 12345,
   "position": 1,
-  "publish_status": "published"
+  "publish_status": "published",
+  "default_playback_speed": 1.0,
+  "allow_multiple_completions": true,
+  "remember_playback_position": false
 }
 ```
+The last three fields are optional — only set them for meditation/workout/repeat-listen content (see Playback Settings section below).
 
 **Update a lesson:**
 ```
@@ -245,6 +259,7 @@ Run the script and monitor progress. For large imports (100+ lessons), run in ba
 
 ## Important Rules
 
+- **Import ALL lesson content.** Every piece of a lesson must be imported: video/audio (as asset), body copy/description (as body HTML), downloadable files (as attachments), and resource links (as link attachments). Do not skip any of these — visit each lesson page individually.
 - **Always verify audio** after downloading video. If `ffprobe` shows no audio stream, try a different format or download method.
 - **Prefer downloading files** over linking. Download Google Drive PDFs, Dropbox files, etc. as actual file attachments rather than adding them as link attachments.
 - **Body content is separate from attachments.** The lesson body is HTML text content (descriptions, instructions, copy). Attachments are downloadable files. Don't put download links in the body — use proper attachments.
@@ -253,3 +268,22 @@ Run the script and monitor progress. For large imports (100+ lessons), run in ba
 - **Rate limit.** Add small delays between API calls if doing many in sequence.
 - **Resume gracefully.** The state file lets you re-run after errors or interruptions without re-creating existing lessons.
 - **Clean titles.** Strip numbering prefixes if already handled by position (e.g., "01: " prefix when it's already position 1). But keep them if they're meaningful (e.g., "Step # 1 - ...").
+
+## Playback Settings for Meditations, Workouts, and Repeat-Listen Content
+
+When the content is a **meditation, guided visualization, workout, breathwork session, hypnosis, affirmation track**, or similar content that people listen to repeatedly and should experience at normal speed:
+
+Set these fields when creating the lesson:
+```json
+{
+  "default_playback_speed": 1.0,
+  "allow_multiple_completions": true,
+  "remember_playback_position": false
+}
+```
+
+- **`default_playback_speed: 1.0`** — prevents the player from defaulting to a faster speed. Meditations, workouts, and similar content should always start at 1x.
+- **`allow_multiple_completions: true`** — lets users mark the lesson complete more than once, since these are designed to be repeated.
+- **`remember_playback_position: false`** — the lesson starts from the beginning each time instead of resuming where they left off, since users want the full experience each listen.
+
+**How to detect this type of content:** Look at the lesson title and description for keywords like: meditation, guided, visualization, breathwork, workout, exercise, affirmation, hypnosis, tapping, EFT, yoga, relaxation, sleep, journaling prompt (audio), prayer. Also consider the context — if the entire course is a meditation series or wellness program, apply these settings to all lessons.
