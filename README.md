@@ -7,6 +7,7 @@ AI coding agent skills for building on [Simplero](https://simplero.com). Works w
 | Skill | Description |
 |-------|-------------|
 | `simplero-page` | Build and manage landing pages on Simplero via the API |
+| `import-course` | Import courses from any platform (Kajabi, Skool, Teachable, etc.) into Simplero |
 
 ## Installation
 
