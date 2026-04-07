@@ -22,14 +22,11 @@ Base URL: https://simplero.com/api/v1
  4. View/update later — GET /landing_pages/:id to fetch current HTML, PATCH /landing_pages/:id with html to update. Always fetch first so you don't overwrite editor changes.
  5. To refresh embeds — fetch the page, strip old <builder-node> tags, get fresh embed codes from /builder_doc_nodes/embed, re-insert them, and PATCH.
 
- Avoid using internal elements like Simplero trial signup, even if it's available through the API.
-
  ---
  Discovering Available Elements
 
  - GET /builder_doc_nodes/ — lists all embeddable element types grouped by category
  - GET /builder_doc_nodes/elements/order_form (or any type) — shows available settings and their defaults
- - Record IDs (product_id, survey_id, etc.) aren't yet available via the API — use rails runner to look them up, then pass them to the embed endpoint
 
  You may use the playright tool to view how the page looks currently if given instructions to copy design from a specific other page.
  And then you can also use it to view the page and make any changes if you notice any thing funky
