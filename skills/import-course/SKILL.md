@@ -120,14 +120,15 @@ Every lesson's text/copy content MUST be scraped and imported. This is the lesso
 - Remove `data-*` attributes from extracted HTML for cleanliness
 - If the body is truly just the video embed with no text, set body to empty string — but verify by checking multiple selectors first
 
-### Extracting Images and Non-Video Media
-Not every lesson has a video. Some lessons have an **image as their primary content** (infographics, maps, diagrams, worksheets). When a lesson has no video/audio but has a prominent image:
+### Extracting the Main Asset (not always video)
+Not every lesson's primary content is a video. The main asset could be an **image** (infographic, map, diagram), a **PDF** (workbook, guide, checklist), an **audio file** (podcast, meditation, voice note), or something else entirely. Look for whatever the lesson is built around:
 
-- Check `.player__video img`, `.post-hero img`, or the main content area for large images (typically 1280x720 or larger)
-- Also check the "Downloads" sidebar for downloadable versions of the image
-- **Use the CDN URL** (e.g., `kajabi-storefronts-production.kajabi-cdn.com/...`) rather than the `/courses/downloads/` URL which may redirect to an HTML page
-- Upload the image as the lesson's main `asset_id` — Simplero supports images as lesson assets, not just video/audio
-- If the lesson has both a video AND images, the video goes in `asset_id` and images go as attachments
+- **Image lessons:** Check `.player__video img`, `.post-hero img`, or the main content area for large images. Use the CDN URL (e.g., `kajabi-storefronts-production.kajabi-cdn.com/...`) rather than `/courses/downloads/` URLs which may redirect to HTML.
+- **PDF lessons:** Some lessons are just a downloadable PDF with no video — the PDF is the main content, not an attachment. Upload it as the lesson's `asset_id`.
+- **Audio lessons:** Look for `<audio>` elements, SoundCloud embeds, or direct `.mp3`/`.m4a` links. These go in `asset_id` just like video.
+- **No media at all:** Some lessons are text-only (instructions, welcome messages). Set `asset_id` to null and put everything in the body.
+
+Upload whatever the primary content is as the lesson's `asset_id` — Simplero supports video, audio, images, and PDFs as lesson assets. If a lesson has both a video AND supplementary files (PDFs, images), the video goes in `asset_id` and the rest go as attachments.
 
 ### Extracting Attachments/Resources
 Look for ALL downloadable files on each lesson page — PDFs, images, spreadsheets, docs, everything:
