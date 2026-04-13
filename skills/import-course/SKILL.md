@@ -120,12 +120,27 @@ Every lesson's text/copy content MUST be scraped and imported. This is the lesso
 - Remove `data-*` attributes from extracted HTML for cleanliness
 - If the body is truly just the video embed with no text, set body to empty string — but verify by checking multiple selectors first
 
+### Extracting Images and Non-Video Media
+Not every lesson has a video. Some lessons have an **image as their primary content** (infographics, maps, diagrams, worksheets). When a lesson has no video/audio but has a prominent image:
+
+- Check `.player__video img`, `.post-hero img`, or the main content area for large images (typically 1280x720 or larger)
+- Also check the "Downloads" sidebar for downloadable versions of the image
+- **Use the CDN URL** (e.g., `kajabi-storefronts-production.kajabi-cdn.com/...`) rather than the `/courses/downloads/` URL which may redirect to an HTML page
+- Upload the image as the lesson's main `asset_id` — Simplero supports images as lesson assets, not just video/audio
+- If the lesson has both a video AND images, the video goes in `asset_id` and images go as attachments
+
 ### Extracting Attachments/Resources
+Look for ALL downloadable files on each lesson page — PDFs, images, spreadsheets, docs, everything:
+
 - Download links (PDFs, docs, spreadsheets)
+- **"Downloads" sidebar** — Kajabi often has a separate downloads section with files (check for links containing `/courses/downloads/` or file extensions)
+- Image files (.jpg, .png) that are lesson content (not thumbnails/navigation)
 - Google Drive links — convert to direct download: `https://drive.google.com/uc?export=download&id={FILE_ID}`
 - Dropbox links — append `?dl=1` for direct download
 - Resource lists in JSON metadata (Skool `resources` field)
 - Any `<a>` tags pointing to downloadable files
+
+**For Kajabi download URLs:** The `/courses/downloads/{id}/filename` pattern may return an HTML page instead of the file. If the downloaded file is suspiciously small (<10 KB) or is HTML, fall back to the direct CDN URL from the `img` tag or use Playwright to follow the download redirect and capture the actual file URL.
 
 ## Step 4: Download Media
 
