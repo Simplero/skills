@@ -1,6 +1,6 @@
 ---
 name: import-course
-version: 0.2.0
+version: 0.3.0
 description: Import an online course from any platform (Kajabi, Skool, Teachable, WordPress/LearnDash, etc.) into Simplero. Handles video, audio, text, attachments, and resources.
 user-invocable: true
 argument-hint: <source-url>
@@ -55,7 +55,11 @@ Use Playwright (headless Chromium) to log in and scrape. Key patterns per platfo
 1. Launch browser with anti-detection: `headless=True`, custom user-agent, remove webdriver flag
 2. Log in via the platform's login form
 3. Navigate to the course page
-4. Extract lesson list with titles and URLs
+4. Extract lesson list with titles and URLs — **check for pagination, "Show More" buttons, and "Load More" triggers**. Many platforms only show 10-20 lessons at a time. Always look for:
+   - `?page=N` pagination links
+   - "Show More" / "Load More" buttons (may reveal pagination after clicking)
+   - Infinite scroll (scroll to bottom, wait, check for new items)
+   - A total lesson count displayed on the page — compare against how many you've found
 5. Visit each lesson page to get: video URLs, body HTML, download links, audio embeds
 
 ### Platform-Specific Notes
@@ -73,6 +77,13 @@ Use Playwright (headless Chromium) to log in and scrape. Key patterns per platfo
 - Course page lists categories with links to `/categories/{id}`
 - Each category page has lesson links to `/posts/{id}`
 - Videos are typically Wistia embeds — look for `wistia_async_{ID}` in div classes
+- **Pagination and "Show More" (CRITICAL):** Kajabi paginates lesson lists. You MUST handle this:
+  1. The course listing page (`/products/{slug}`) may show only the first 10 lessons with a **"Show More"** link at the bottom. Click it.
+  2. After clicking "Show More", **check for pagination links** (`?page=2`, `?page=3`, etc.) that appear at the bottom. These are NOT visible until after Show More is clicked.
+  3. Also check `?page=N` on the course URL itself — some courses paginate at the top level (e.g., `/products/{slug}?page=2`).
+  4. For category pages (`/categories/{id}`), also check for `?page=N` pagination.
+  5. **Always verify the total lesson count** — Kajabi shows "X of Y Lessons Completed" in the sidebar. Compare Y against how many lessons you've found. If they don't match, you're missing pages.
+  6. Keep paginating until you've found all lessons. A course claiming 16 lessons but only showing 10 means there's a page 2.
 - Body content varies by theme:
   - Try `.post-body`, `.kjb-post__body`, `.post__body` first
   - If those are empty, check `.panel__block` inside `.section__body` — strip the `h1.panel__title` and `h5.panel__sub-title`, keep the remaining `h2`, `p`, and other content elements
@@ -109,12 +120,28 @@ Every lesson's text/copy content MUST be scraped and imported. This is the lesso
 - Remove `data-*` attributes from extracted HTML for cleanliness
 - If the body is truly just the video embed with no text, set body to empty string — but verify by checking multiple selectors first
 
+### Extracting the Main Asset (not always video)
+Not every lesson's primary content is a video. The main asset could be an **image** (infographic, map, diagram), a **PDF** (workbook, guide, checklist), an **audio file** (podcast, meditation, voice note), or something else entirely. Look for whatever the lesson is built around:
+
+- **Image lessons:** Check `.player__video img`, `.post-hero img`, or the main content area for large images. Use the CDN URL (e.g., `kajabi-storefronts-production.kajabi-cdn.com/...`) rather than `/courses/downloads/` URLs which may redirect to HTML.
+- **PDF lessons:** Some lessons are just a downloadable PDF with no video — the PDF is the main content, not an attachment. Upload it as the lesson's `asset_id`.
+- **Audio lessons:** Look for `<audio>` elements, SoundCloud embeds, or direct `.mp3`/`.m4a` links. These go in `asset_id` just like video.
+- **No media at all:** Some lessons are text-only (instructions, welcome messages). Set `asset_id` to null and put everything in the body.
+
+Upload whatever the primary content is as the lesson's `asset_id` — Simplero supports video, audio, images, and PDFs as lesson assets. If a lesson has both a video AND supplementary files (PDFs, images), the video goes in `asset_id` and the rest go as attachments.
+
 ### Extracting Attachments/Resources
+Look for ALL downloadable files on each lesson page — PDFs, images, spreadsheets, docs, everything:
+
 - Download links (PDFs, docs, spreadsheets)
+- **"Downloads" sidebar** — Kajabi often has a separate downloads section with files (check for links containing `/courses/downloads/` or file extensions)
+- Image files (.jpg, .png) that are lesson content (not thumbnails/navigation)
 - Google Drive links — convert to direct download: `https://drive.google.com/uc?export=download&id={FILE_ID}`
 - Dropbox links — append `?dl=1` for direct download
 - Resource lists in JSON metadata (Skool `resources` field)
 - Any `<a>` tags pointing to downloadable files
+
+**For Kajabi download URLs:** The `/courses/downloads/{id}/filename` pattern may return an HTML page instead of the file. If the downloaded file is suspiciously small (<10 KB) or is HTML, fall back to the direct CDN URL from the `img` tag or use Playwright to follow the download redirect and capture the actual file URL.
 
 ## Step 4: Download Media
 
