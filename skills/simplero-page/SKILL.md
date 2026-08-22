@@ -45,6 +45,40 @@ Base URL: https://simplero.com/api/v1
    Returns: { id, name, url, html, active }
 
  ---
+ Popups
+
+ Every Simplero page has one built-in popup. Its content is an HTML section like any other,
+ so you write it the same way — but closing it is NOT your job to reimplement.
+
+ The popup is a real modal: it owns a full-screen overlay, Esc handling, click-outside-to-close,
+ and video pausing. Hiding your own markup does not close it — it leaves the visitor staring at a
+ dimmed, empty overlay that only Esc or a click outside can dismiss.
+
+ NEVER write a close button like this:
+
+   <!-- WRONG. Hides your content; the modal and its overlay stay open. -->
+   <button onclick="this.closest('.my-card').style.display='none'">No thanks</button>
+
+   <!-- Also wrong, for the same reason -->
+   <button onclick="this.closest('.my-card').remove()">No thanks</button>
+
+ Write it like this instead — a declarative Stimulus action, no inline JS:
+
+   <button data-action="click->builder--popup#closePopup">No thanks</button>
+
+ That runs exactly the same path as the popup's built-in X: closes the modal, hides the overlay,
+ and stops any playing video. It works at any nesting depth inside the popup, and needs no script
+ tag, no ids, and no selectors.
+
+ To OPEN the popup from elsewhere on the page, put data-open-popup on any element:
+
+   <button data-open-popup>Show me the offer</button>
+
+ Both attributes only work in the right place: data-action="click->builder--popup#closePopup"
+ does nothing unless the button is inside the popup, and data-open-popup belongs on the page
+ outside it. If a close button seems to do nothing, check that it is actually inside the popup.
+
+ ---
 
  You may use the playright tool to view how the page looks currently if given instructions to copy design from a specific other page.
  And then you can also use it to view the page and make any changes if you notice any thing funky.
