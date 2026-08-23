@@ -38,14 +38,37 @@ Site
             └── remember_playback_position (boolean)
 ```
 
-**Mapping rules:**
-- If the source has a flat list of lessons → import into a single Simplero module
-- If the source has sections/categories/sub-modules → each becomes a Simplero module (ask user first, or create modules via `POST /courses/{course_id}/course_modules.json` with `{"title": "...", "publish_status": "published"}`)
+### Flexible Structure Mapping
+
+The source's structure does not always map 1:1 to Simplero's. **Do not assume source courses become Simplero courses, or source sections become Simplero modules.** The user decides the mapping. Common patterns:
+
+| Source structure | Simplero target | When to use |
+|---|---|---|
+| One course with sections/days | **One module**, lessons prefixed with section context | User says "import to a module" or the source is a single cohesive program (challenge, summit, workshop) |
+| Multiple courses | **One module per course** | User says "each course as a separate module" |
+| One course, flat lesson list | **One module** | Simple/small course |
+| Large course with many sections | **One module per section** | User explicitly wants that granularity |
+
+**Always check with the user** if the mapping isn't obvious from their instructions. When in doubt, fewer modules is better — it's easier to split later than to merge.
+
+### Lesson Title Prefixing
+
+When source structure (sections, days, categories) gets flattened into a single Simplero module, **prefix lesson titles** with the structural context so users can orient themselves:
+
+- Source has "Day 1" → "Day 3" sections → `"Day 1, Session 1 — Original Lesson Title"`
+- Source has "Module: Marketing" → `"Marketing — Original Lesson Title"`
+- Source has "Week 1" categories → `"Week 1 — Original Lesson Title"`
+- Source has numbered sections → `"Part 1 — Original Lesson Title"`
+
+Use the format: `"{Section Context}, Session {N} — {Original Title}"` when there are multiple lessons per section, or `"{Section Context} — {Original Title}"` when there's only one lesson per section.
+
+### General Mapping Rules
 - Every video/audio → one Simplero lesson with the file as the `asset_id`
 - Text/HTML content from the lesson page → lesson `body`
 - PDFs, downloads, Google Drive files → lesson `attachments` (download the actual file when possible, don't just link)
 - External links that can't be downloaded → link-type attachments
 - SoundCloud/audio embeds → download as mp3 and upload as the lesson asset
+- To create modules: `POST /courses/{course_id}/course_modules.json` with `{"title": "...", "publish_status": "published"}`
 
 ## Step 3: Scrape the Source Platform
 
