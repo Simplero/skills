@@ -1,6 +1,6 @@
 ---
 name: import-course
-version: 0.3.0
+version: 0.4.0
 description: Import an online course from any platform (Kajabi, Skool, Teachable, WordPress/LearnDash, etc.) into Simplero. Handles video, audio, text, attachments, and resources.
 user-invocable: true
 argument-hint: <source-url>
@@ -119,6 +119,24 @@ Every lesson's text/copy content MUST be scraped and imported. This is the lesso
 - Strip navigation, player UI, "Mark as Complete" buttons, "Next Lesson" links, platform chrome — only keep the actual lesson copy
 - Remove `data-*` attributes from extracted HTML for cleanliness
 - If the body is truly just the video embed with no text, set body to empty string — but verify by checking multiple selectors first
+
+**Strip embedded video players and thumbnails from the body (CRITICAL).** The lesson's video already lives in `asset_id` — Simplero renders its own player. If you leave the source platform's video embed (poster image, play button overlay, iframe, or native `<video>` element) in the body HTML, the lesson page will show a duplicate, broken video thumbnail above the real player.
+
+Before saving the body, remove any of these patterns when they appear:
+- Mighty Networks: `<span class="mighty-video-wrapper">…</span>` (contains an `<a class="mighty-video">` with a poster `<img>`)
+- Wistia: `<div class="wistia_async_*">…</div>`, `<div class="wistia_embed">…</div>`, `<script src="…wistia.com/…/jsonp/…">`
+- Vimeo / YouTube: `<iframe src="…vimeo.com/…">`, `<iframe src="…youtube.com/embed/…">`
+- Native HTML5: standalone `<video>`, `<source>` elements that point at the same file you uploaded as the asset
+- Generic poster images: an `<img>` whose `src` contains the same filename stem as the video URL (often the auto-generated thumbnail)
+
+Apply the strip with a regex or a DOM walk after extracting the body container — do not rely on selector-based extraction alone, because the video wrapper is usually a sibling/child inside the same body container. Quick example:
+```python
+import re
+body = re.sub(r'<span[^>]*class="[^"]*mighty-video-wrapper[^"]*"[^>]*>.*?</span>\s*', '', body, flags=re.DOTALL)
+body = re.sub(r'<iframe[^>]+(?:vimeo\.com|youtube\.com/embed|wistia\.net)[^>]*>.*?</iframe>', '', body, flags=re.DOTALL)
+body = re.sub(r'<div[^>]*class="[^"]*wistia_(?:async|embed)[^"]*"[^>]*>.*?</div>', '', body, flags=re.DOTALL)
+```
+Verify with a quick visual check on the first imported lesson before running the full import.
 
 ### Extracting the Main Asset (not always video)
 Not every lesson's primary content is a video. The main asset could be an **image** (infographic, map, diagram), a **PDF** (workbook, guide, checklist), an **audio file** (podcast, meditation, voice note), or something else entirely. Look for whatever the lesson is built around:
